@@ -15,31 +15,18 @@ import sys
 
 fig1, axs1 = plt.subplots(1, 2, figsize=(12, 4), dpi=300)
 fig1.subplots_adjust(wspace=0.3)
-
-
-# Example: Blank panels (no data, no labels)
 for ax in axs1:
     ax.set_frame_on(True)
 
-# --- NEW FIGURE 2: One large on top, three taller, multi-row small panels ---
 fig2 = plt.figure(figsize=(14, 14), dpi=300)
 fig3, axc = plt.subplots(2,2,figsize=[12,10])
 axc = axc.flatten()
-
-# Custom gridspec: 2 rows, but top row (single panel) has 1/3 height, bottom row (three panels) has 2/3 height
-# We'll manually create inner grids for the bottom panels
 outer_gs = gridspec.GridSpec(2, 1, height_ratios=[1, 2], hspace=0.2)
-
-# Top: Large square-like panel
 top_gs = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=outer_gs[0], wspace=0.1)
 ax_top = fig2.add_subplot(top_gs[1])  # Use center 1/3 only
 ax_top.set_box_aspect(1)              # Make it square in terms of figure space, but do NOT distort axes
 ax_top.set_frame_on(True)
-
-# Bottom: 3 taller panels each with 3 subrows
 bottom_gs = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=outer_gs[1], wspace=0.3)
-
-# Create 3 columns, each will have its own 3 stacked rows (no space between)
 inner_axes = []
 for i in range(3):
     inner_gs = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=bottom_gs[i], hspace=0)
@@ -50,36 +37,31 @@ for i in range(3):
         col_axes.append(ax)
     inner_axes.append(col_axes)
 
-#fig2.tight_layout()
-
 ################################################################################
 # parameter and variable Set UP 
 ##################################################################################
 
+# time domain
 step = 0.001
 ndays = 200
 mtimes = np.linspace(0,ndays,int(ndays/step))
 
+# state variables
 P = np.array([])
 S  = np.array([])
 N = np.array([])
 H = np.array([])
-
 y = [P,S,N,H]
 
-#initial values to be used for odeint start 
-
+#initial conditions
 P0 = 1e6
 S0 = 1e6
 N0 = 0.1 #nM 
 H0 = 1    #nM
-
 inits = (P0,S0,N0,H0)
 
-scale = 1e+9
-
 # for contours
-SNs = np.linspace(1.0e5, 2.0e6, num = 10)/scale
+SNs = np.linspace(1.0e-4, 2.0e-3, num = 10)
 Shs = np.linspace(0, 500, num = 10)
 Z = np.zeros((int(SNs.shape[0]),int(Shs.shape[0])),float)
 Nc,Pc,Sc,Hc = Z.copy(),Z.copy(),Z.copy(),Z.copy()
@@ -89,57 +71,47 @@ cmin,cmax = 1e+5,1e+8
 nmin,nmax = 4e-4,1e-0
 hmin,hmax = 1e-2,3e+2
 
+# contour labels
 SNlab = r'Nitrogen supply rate ($\mu$M day$^{-1}$)'
 SHlab = 'H$_2$O$_2$ supply rate (nM day$^{-1}$)'
-
-###########################################################################
-# contours
-###########################################################################
-
-# colorbar labels
 nlab = r'Nitrogen concentration ($\mu$M)'
 plab = r'$Prochlorococcus$ (cells mL$^{-1}$)'
 slab = r'$Synechococcus$ (cells mL$^{-1}$)'
 clab = r'Cells (mL$^{-1}$)'
 hlab = r'H$_2$O$_2$ concentration (nM)'
 cmlabs = [nlab,plab,slab,hlab]
-
 cbarlab = 'Fraction of cyanobacteria cells \n that are $Prochlorococcus$'
 
-#dynamics, leaky syn
-for (i,SN) in zip(range(SNs.shape[0]),SNs):
-    for (j,Sh) in zip(range(Shs.shape[0]),Shs):
-        params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
-        leaky  = odeint(leak, inits, mtimes, args = (params,))
-        Psc = leaky[:,0]
-        Ssc = leaky[:,1]
-        Nsc = leaky[:,2]
-        Hsc = leaky[:,3]
-        Ssc_av = np.mean(Ssc[-50:])
-        Psc_av = np.mean(Psc[-50:])
-        ratio = (Ssc_av/( Ssc_av+ Psc_av))
-        Z[i,j],Nc[i,j],Pc[i,j],Sc[i,j],Hc[i,j] = ratio,np.mean(Nsc[-50:]),np.mean(Psc[-50:]),np.mean(Ssc[-50:]),np.mean(Hsc[-50:])
-for (f,ax) in zip([fig1,fig2],[axs1[1],ax_top]):
-    grid = ax.pcolormesh( Shs, SNs, Z, vmin=0, vmax=np.max(Z), cmap = 'summer', shading= 'auto'  )  #'gouraud'
-    ax.set(xlabel=SHlab)
-    ax.set(ylabel=SNlab)
-    f.colorbar(grid,ax=ax,label=cbarlab)
+##################################################
+# demo plot showing Rstar values w.r.t. 
+#hydrogen peroxide concentration
+##################################################
+f5,ax5 = plt.subplots()
 
-for (ax,C,cm,cmlab) in zip(axc,[Nc,Pc,Sc,Hc],['Purples','Blues','Reds','Greens'],cmlabs):
-    grid = ax.pcolormesh( Shs, SNs, C,norm=colors.LogNorm(), cmap = cm, shading= 'auto'  )  #'gouraud'
-    ax.set(xlabel=SHlab)
-    ax.set(ylabel=SNlab)
-    fig3.colorbar(grid,ax=ax,label=cmlab)
+Hs = np.linspace(0,75,100)
+Pstars = ksp*(dp+kdam*Hs)/(mumaxp-(dp+kdam*Hs))
+Sstar = kss*ds/(mumaxs-ds)
 
-for (ax,C,levs) in zip(axc[1:],[Pc,Sc,Hc],[[1e+4,1e+5],[1e+4,1e+5],[0,200]]):
-    contour = ax.contour(Shs, SNs, C, levels=levs, colors='black')
-    plt.clabel(contour, inline=True, fontsize=12)
+ax5.axhline(Sstar,label='$Synechococcus$ R$^{*}$',c='k',lw=2)
+ax5.plot(Hs,Pstars,label='$Prochlorococcus$ R$^{*}$',c='k',ls='--',lw=2)
 
+ax5.set_xlabel(hlab)
+ax5.set_ylabel(r'Minimal nutrient requirement, R$^{*}$ ($\mu$M)')
+
+l5 = ax5.legend()
+l5.draw_frame(False)
+
+f5.savefig('../figures/figure2',dpi=300,bbox_inches='tight')
+
+###########################################################################
+# run contour simulations
+###########################################################################
+
+# no synechococcus or het bac detoxification
 phi = 0.0
-#dynamics in non leaky  - only phio froom bacteria - none from sYn
 for (i,SN) in zip(range(SNs.shape[0]),SNs):
     for (j,Sh) in zip(range(Shs.shape[0]),Shs):
-        params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
         leaky  = odeint(leak, inits, mtimes, args = (params,))
         Psc = leaky[:,0]
         Ssc = leaky[:,1]
@@ -153,18 +125,51 @@ grid = axs1[0].pcolormesh( Shs, SNs, Z, vmin=0, vmax=np.max(Z), cmap = 'summer',
 axs1[0].set(xlabel=SHlab)
 axs1[0].set(ylabel=SNlab)
 fig1.colorbar(grid, cmap= 'summer',label = cbarlab)
+
+# turn on bacteria detox
 phi = 1.7e-6
+for (i,SN) in zip(range(SNs.shape[0]),SNs):
+    for (j,Sh) in zip(range(Shs.shape[0]),Shs):
+        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+        leaky  = odeint(leak, inits, mtimes, args = (params,))
+        Psc = leaky[:,0]
+        Ssc = leaky[:,1]
+        Nsc = leaky[:,2]
+        Hsc = leaky[:,3]
+        Ssc_av = np.mean(Ssc[-50:])
+        Psc_av = np.mean(Psc[-50:])
+        ratio = (Ssc_av/( Ssc_av+ Psc_av))
+        Z[i,j],Nc[i,j],Pc[i,j],Sc[i,j],Hc[i,j] = ratio,np.mean(Nsc[-50:]),np.mean(Psc[-50:]),np.mean(Ssc[-50:]),np.mean(Hsc[-50:])
+
+# plot
+for (f,ax) in zip([fig1,fig2],[axs1[1],ax_top]):
+    grid = ax.pcolormesh( Shs, SNs, Z, vmin=0, vmax=np.max(Z), cmap = 'summer', shading= 'auto'  )  #'gouraud'
+    ax.set(xlabel=SHlab)
+    ax.set(ylabel=SNlab)
+    f.colorbar(grid,ax=ax,label=cbarlab)
+
+# plot
+for (ax,C,cm,cmlab) in zip(axc,[Nc,Pc,Sc,Hc],['Purples','Blues','Reds','Greens'],cmlabs):
+    grid = ax.pcolormesh( Shs, SNs, C,norm=colors.LogNorm(), cmap = cm, shading= 'auto'  )  #'gouraud'
+    ax.set(xlabel=SHlab)
+    ax.set(ylabel=SNlab)
+    fig3.colorbar(grid,ax=ax,label=cmlab)
+
+# plot
+for (ax,C,levs) in zip(axc[1:],[Pc,Sc,Hc],[[1e+4,1e+5],[1e+4,1e+5],[0,200]]):
+    contour = ax.contour(Shs, SNs, C, levels=levs, colors='black')
+    plt.clabel(contour, inline=True, fontsize=12)
 
 ax_top.text(-0.3,1.0,'a',ha='center',va='center',color='k',transform=ax_top.transAxes,fontsize=14)
 
 ###########################################################################
-# time-dependent dynamics
+# time-dependent dynamics and equilibria
 ###########################################################################
 
 #params for P to Win 
 Sh = Shs[0]
 SN  = SNs[2]
-params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
 
 #get equilibria with function 
 Nstar, Pstar, Sstar, Hstar = Pwins(params)
@@ -178,7 +183,7 @@ Ss = competition[:,1]
 Ns = competition[:,2]
 Hs = competition[:,3]
 
-#graaph dynamics where P dominates 
+# dynamics where P dominates 
 ax1, ax2,ax3 = inner_axes[0]
 plt.subplots_adjust(right=0.95, wspace = 0.45, left = 0.10, hspace = 0.15, bottom = 0.10)
 ax1.set(xlabel='Time (days)', ylabel=clab)
@@ -219,7 +224,7 @@ ax1.text(-0.2,1.2,'b',ha='center',va='center',color='k',transform=ax1.transAxes,
 #params for S to Win 
 Sh = Shs[-3]
 SN  = SNs[4]
-params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
 
 #get equilibria with function 
 Nstar, Pstar, Sstar, Hstar = Swins(params)
@@ -272,7 +277,7 @@ ax1.text(-0.2,1.2,'c',ha='center',va='center',color='k',transform=ax1.transAxes,
 #params for coexists
 Sh = Shs[2]
 SN = SNs[5]
-params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
 
 #run model 
 competition  = odeint(leak, inits, mtimes, args = (params,))
@@ -327,10 +332,12 @@ for (ax,l) in zip(axs1,'ab'):
 for (ax,l,c) in zip(axc,'abcd',['w','w','w','k']):
     ax.text(0.12,0.9,l,ha='center',va='center',color=c,transform=ax.transAxes)
 
+fig3.subplots_adjust(wspace=0.4)
+
 # savefigs
-fig1.savefig("../figures/dynamic_vs_equilibrium", bbox_inches='tight')
-fig2.savefig("../figures/figure1.png", bbox_inches='tight')
-fig3.savefig("../figures/figure2.png", bbox_inches='tight')
+fig1.savefig("../figures/figure3.png", bbox_inches='tight')
+fig2.savefig("../figures/figure4.png", bbox_inches='tight')
+fig3.savefig("../figures/figure5.png", bbox_inches='tight')
 
 ###########################
 
@@ -367,7 +374,7 @@ inits = (1e+4,1e+4,0.1,10)
 
 for (i,EZ55) in zip(range(EZ55s.shape[0]),EZ55s):
     for (j,Sh) in zip(range(Shs.shape[0]),Shs):
-        params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
+        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
         leaky  = odeint(leak, inits, mtimes, args = (params,))
         Nstar, Pstar, Sstar, Hstar = Coexist(params)
         Psc = leaky[:,0]
@@ -422,7 +429,7 @@ con = ConnectionPatch(xyA, xyB, axesA = ax1, axesB = ax4, coordsA=ax1.transData,
 fig4.add_artist(con)
 
 # dynamics
-params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
 competition  = odeint(leak, inits, mtimes, args = (params,))
 Nstar, Pstar, Sstar, Hstar = Pwins(params)
 Ps = competition[:,0]
@@ -449,7 +456,7 @@ con = ConnectionPatch(xyA, xyB, axesA = ax1, axesB = ax3, coordsA=ax1.transData,
 fig4.add_artist(con)
 
 # dynamics
-params = [ksp,kss,k2p,k2s,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
 competition  = odeint(leak, inits, mtimes, args = (params,))
 Nstar, Pstar, Sstar, Hstar = Coexist(params)
 Ps = competition[:,0]
@@ -474,26 +481,6 @@ ax3.text(0.05,0.9,'c',ha='center',va='center',color='k',transform=ax3.transAxes,
 ax4.text(0.05,0.9,'d',ha='center',va='center',color='k',transform=ax4.transAxes,fontsize=14)
 
 fig4.subplots_adjust(wspace=0.35)
-fig4.savefig('../figures/davids_leaky_contour',dpi=300,bbox_inches='tight')
+fig4.savefig('../figures/figure6',dpi=300,bbox_inches='tight')
 
-##################################################
-# demo plot showing Rstar values w.r.t. 
-#hydrogen peroxide concentration
-
-f5,ax5 = plt.subplots()
-
-Hs = np.linspace(0,75,100)
-Pstars = ksp*(dp+kdam*Hs)/(k2p-(dp+kdam*Hs))
-Sstar = kss*ds/(k2s-ds)
-
-ax5.axhline(Sstar,label='$Synechococcus$ R$^{*}$',c='k',lw=2)
-ax5.plot(Hs,Pstars,label='$Prochlorococcus$ R$^{*}$',c='k',ls='--',lw=2)
-
-ax5.set_xlabel(hlab)
-ax5.set_ylabel(r'Minimal nutrient requirement, R$^{*}$ ($\mu$M)')
-
-l5 = ax5.legend()
-l5.draw_frame(False)
-
-f5.savefig('../figures/demplot',dpi=300,bbox_inches='tight')
 

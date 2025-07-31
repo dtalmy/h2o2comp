@@ -54,8 +54,8 @@ H = np.array([])
 y = [P,S,N,H]
 
 #initial conditions
-P0 = 1e6
-S0 = 1e6
+P0 = 1e5
+S0 = 1e5
 N0 = 0.1 #nM 
 H0 = 1    #nM
 inits = (P0,S0,N0,H0)
@@ -68,8 +68,8 @@ Nc,Pc,Sc,Hc = Z.copy(),Z.copy(),Z.copy(),Z.copy()
 
 # axis limits
 cmin,cmax = 1e+5,1e+8
-nmin,nmax = 4e-4,1e-0
-hmin,hmax = 1e-2,3e+2
+nmin,nmax = 1e-4,1e-0
+hmin,hmax = 1e-2,1e+3
 
 # contour labels
 SNlab = r'Nitrogen supply rate ($\mu$M day$^{-1}$)'
@@ -111,7 +111,7 @@ f5.savefig('../figures/figure2',dpi=300,bbox_inches='tight')
 phi = 0.0
 for (i,SN) in zip(range(SNs.shape[0]),SNs):
     for (j,Sh) in zip(range(Shs.shape[0]),Shs):
-        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0,0]
         leaky  = odeint(leak, inits, mtimes, args = (params,))
         Psc = leaky[:,0]
         Ssc = leaky[:,1]
@@ -130,7 +130,7 @@ fig1.colorbar(grid, cmap= 'summer',label = cbarlab)
 phi = 1.7e-6
 for (i,SN) in zip(range(SNs.shape[0]),SNs):
     for (j,Sh) in zip(range(Shs.shape[0]),Shs):
-        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0,False]
         leaky  = odeint(leak, inits, mtimes, args = (params,))
         Psc = leaky[:,0]
         Ssc = leaky[:,1]
@@ -156,7 +156,8 @@ for (ax,C,cm,cmlab) in zip(axc,[Nc,Pc,Sc,Hc],['Purples','Blues','Reds','Greens']
     fig3.colorbar(grid,ax=ax,label=cmlab)
 
 # plot
-for (ax,C,levs) in zip(axc[1:],[Pc,Sc,Hc],[[1e+4,1e+5],[1e+4,1e+5],[0,200]]):
+Pc = np.ma.masked_where(Pc < 1e+2, Pc)
+for (ax,C,levs) in zip(axc[1:],[Pc,Sc,Hc],[[1e+3,1e+6],[1e+2,1e+5],[0,200]]):
     contour = ax.contour(Shs, SNs, C, levels=levs, colors='black')
     plt.clabel(contour, inline=True, fontsize=12)
 
@@ -169,7 +170,7 @@ ax_top.text(-0.3,1.0,'a',ha='center',va='center',color='k',transform=ax_top.tran
 #params for P to Win 
 Sh = Shs[0]
 SN  = SNs[2]
-params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0,False]
 
 #get equilibria with function 
 Nstar, Pstar, Sstar, Hstar = Pwins(params)
@@ -224,7 +225,7 @@ ax1.text(-0.2,1.2,'b',ha='center',va='center',color='k',transform=ax1.transAxes,
 #params for S to Win 
 Sh = Shs[-3]
 SN  = SNs[4]
-params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0,False]
 
 #get equilibria with function 
 Nstar, Pstar, Sstar, Hstar = Swins(params)
@@ -276,8 +277,8 @@ ax1.text(-0.2,1.2,'c',ha='center',va='center',color='k',transform=ax1.transAxes,
 
 #params for coexists
 Sh = Shs[2]
-SN = SNs[5]
-params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0]
+SN = SNs[7]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,0,False]
 
 #run model 
 competition  = odeint(leak, inits, mtimes, args = (params,))
@@ -365,16 +366,21 @@ ax2 = fig4.add_subplot(gs[0, 3:6])
 ax3 = fig4.add_subplot(gs[2, 1:5])
 ax4 = fig4.add_subplot(gs[3, 1:5])
 
-EZ55s = np.linspace(1e+5, 1e+6, num = 10)
+EZ55s = np.linspace(1e+4, 1e+6, num = 10)
 Shs = np.linspace(0, 500, num = 10)
 Z = np.zeros((int(EZ55s.shape[0]),int(Shs.shape[0])),float)
 HOOH = np.zeros((int(EZ55s.shape[0]),int(Shs.shape[0])),float)
-SN = SNs[5]
-inits = (1e+4,1e+4,0.1,10)
+SN = 0.00038
+#inits = (1e+2,1e+2,0.1,10)
+
+# time domain
+step = 0.001
+ndays = 800
+mtimes = np.linspace(0,ndays,int(ndays/step))
 
 for (i,EZ55) in zip(range(EZ55s.shape[0]),EZ55s):
     for (j,Sh) in zip(range(Shs.shape[0]),Shs):
-        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
+        params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,False]
         leaky  = odeint(leak, inits, mtimes, args = (params,))
         Nstar, Pstar, Sstar, Hstar = Coexist(params)
         Psc = leaky[:,0]
@@ -420,16 +426,19 @@ ax1t.set_ylabel(r'abiotic decay rate (day$^{-1}$)')
 # P WINS
 ####################
 # connecting arrows
-Sh,EZ55 = Shs[3], EZ55s[8]
+Sh,EZ55 = Shs[4], EZ55s[6]
 xyA = (Sh,EZ55/1e+6)
 xyB = (-0.2, 0.5)
 ax1.plot(*xyA, 'o', color='blue')
-con = ConnectionPatch(xyA, xyB, axesA = ax1, axesB = ax4, coordsA=ax1.transData, coordsB='axes fraction',
-                      color='black', arrowstyle='->', linewidth=2, connectionstyle='arc3,rad=0.2')
+
+
+
+con = ConnectionPatch(xyA, xyB, axesA = ax1, axesB = ax3, coordsA=ax1.transData, coordsB='axes fraction',
+                      color='black', arrowstyle='->', linewidth=2, connectionstyle='arc3,rad=0.3')
 fig4.add_artist(con)
 
 # dynamics
-params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,False]
 competition  = odeint(leak, inits, mtimes, args = (params,))
 Nstar, Pstar, Sstar, Hstar = Pwins(params)
 Ps = competition[:,0]
@@ -447,18 +456,18 @@ l3.draw_frame(False)
 # S WINS
 ####################
 # connecting arrows
-Sh,EZ55 = Shs[7], EZ55s[7]
+Sh,EZ55 = Shs[3], EZ55s[1]
 xyA = (Sh,EZ55/1e+6)
-xyB = (0.25, 1.2)
+xyB = (-0.2, 0.5)
 ax1.plot(*xyA, 'o', color='blue')
-con = ConnectionPatch(xyA, xyB, axesA = ax1, axesB = ax3, coordsA=ax1.transData, coordsB='axes fraction',
-                      color='black', arrowstyle='->', linewidth=2, connectionstyle='arc3,rad=-0.3')
+con = ConnectionPatch(xyA, xyB, axesA = ax1, axesB = ax4, coordsA=ax1.transData, coordsB='axes fraction',
+                      color='black', arrowstyle='->', linewidth=2, connectionstyle='arc3,rad=0.4')
 fig4.add_artist(con)
 
 # dynamics
-params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55]
+params = [ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,False]
+Nstar, Pstar, Sstar, Hstar = Swins(params)
 competition  = odeint(leak, inits, mtimes, args = (params,))
-Nstar, Pstar, Sstar, Hstar = Coexist(params)
 Ps = competition[:,0]
 Ss = competition[:,1]
 ax4.plot(mtimes, Ps , linewidth = 3, color = 'g')
@@ -472,10 +481,11 @@ ax4.set(xlabel='Time (days)', ylabel=clab)
 ax3.semilogy()
 ax4.semilogy()
 
-ax4.set_ylim([1e-2,1e+8])
+ax3.set_ylim([1e+4,1e+8])
+ax4.set_ylim([1e+4,1e+8])
 
 # labels
-ax1.text(0.1,0.9,'a',ha='center',va='center',color='w',transform=ax1.transAxes,fontsize=14)
+ax1t.text(0.1,0.9,'a',ha='center',va='center',color='w',transform=ax1t.transAxes,fontsize=14)
 ax2.text(0.1,0.9,'b',ha='center',va='center',color='k',transform=ax2.transAxes,fontsize=14)
 ax3.text(0.05,0.9,'c',ha='center',va='center',color='k',transform=ax3.transAxes,fontsize=14)
 ax4.text(0.05,0.9,'d',ha='center',va='center',color='k',transform=ax4.transAxes,fontsize=14)

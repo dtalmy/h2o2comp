@@ -16,7 +16,7 @@ ds =  0.1   #syn delta
 kdam = 0.005555   #hooh mediated damage rate of Pro mccullough 2025 
 deltah = 0.001       # background decay rate mccullough 2025
 phi = 1.7e-6    #0007  #syn detox decay of HOOH mccullough 2025
-rho =  0.2 # assumed
+rho =  0.1 # assumed
 Qnp = 9.4e-15/14.0*1e+6  #Nitrogen Quota for Pro from Bertilison in mumol N cell-1
 Qns = 20.0e-15/14.0*1e+6 # and for syn 
 
@@ -26,12 +26,15 @@ Qns = 20.0e-15/14.0*1e+6 # and for syn
 
 # tendencies
 def leak(y,t,params):
-    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55 = params
+    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,flag = params
     P,S,N,H = max(y[0],1e-30),max(y[1],1e-30),max(y[2],1e-30),max(y[3],1e-30)
     dPdt = (mumaxp * N /( (ksp) + N) )*P - (dp *P) - kdam*H*P
     dSdt =(mumaxs * N /( (kss) + N))*S - (ds *S)     
     dNdt =  SN - Qnp*(mumaxp * N /(ksp + N)*P) - Qns*(mumaxs * N /(kss + N)*S) - rho*N    
     dHdt = Sh - deltah*H  - phi*S*H - 13e-6*EZ55*H
+    if flag == True:
+        print(P,S,N,H)
+        print(dPdt,dSdt,dNdt,dHdt)
     return [dPdt,dSdt,dNdt,dHdt]
 
 #################################################
@@ -39,7 +42,7 @@ def leak(y,t,params):
 ################################################
 
 def death_all(params):
-    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55 = params
+    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,flag = params
     Nstar = SN/(rho)
     Pstar = 0
     Sstar = 0
@@ -47,7 +50,7 @@ def death_all(params):
     return  Nstar, Pstar, Sstar, Hstar 
 
 def Pwins (params): 
-    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55 = params
+    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,flag = params
     Hstar = Sh/(deltah+13e-6*EZ55)
     Nstar =  ((ds +kdam*Hstar)*ksp)/(mumaxp - ((ds+kdam*Hstar)))
     Pstar = ((SN-rho*Nstar)*(Nstar+ksp)) / (mumaxp*Nstar*Qnp)
@@ -55,7 +58,7 @@ def Pwins (params):
     return  Nstar, Pstar, Sstar, Hstar 
 
 def Swins (params): 
-    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55 = params
+    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,flag = params
     Nstar = (ds*kss)/(mumaxs-ds)
     Pstar = 0
     Sstar = ((SN-rho*Nstar)*(Nstar+kss)) / (mumaxs*Nstar*Qns)
@@ -63,7 +66,7 @@ def Swins (params):
     return  Nstar, Pstar, Sstar, Hstar 
 
 def Coexist (params): 
-    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55 = params
+    ksp,kss,mumaxp,mumaxs,dp,ds,kdam,deltah,phi,rho,SN,Sh,Qnp,Qns,EZ55,flag = params
     Nstar = (ds*kss)/(mumaxs-ds)
     Hstar = 1/kdam*(mumaxp*Nstar/(ksp+Nstar)-ds)
     Sstar = (Sh/Hstar-deltah-13e-6*EZ55) /(phi)

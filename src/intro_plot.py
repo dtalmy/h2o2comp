@@ -30,7 +30,7 @@ hmd = pd.read_excel('../data/data_MEGA.xlsx',sheet_name='depth_HOOH_insitu_2016M
 f,ax = plt.subplots(1,2,figsize=[9,4.5])
 ax[0].set_xlabel('Time')
 ax[1].set_xlabel('Time')
-ax[0].set_ylabel('H$_2$O$_2$ concentration (nM)')
+ax[0].set_ylabel('H$_2$O$_2$ concentration (pmol mL$^{-1}$)')
 ax[1].set_ylabel('cells (mL$^{-1}$)')
 
 for (a,l) in zip(ax,'ab'):
